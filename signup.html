@@ -1,0 +1,5 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Signup</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="nav"><a href="index.html"><b>AIBRIDGE</b></a><a href="login.html" style="color:#9a9a9a">Login</a></nav>
+<div class="auth-wrap"><div class="label">Get NOVA Key</div><h2 style="font-size:36px;font-weight:400;margin-bottom:20px">Create your memory</h2><input placeholder="Work email"><select id="country" style="width:100%;padding:14px;border-radius:12px;border:1px solid #222;background:#000;color:#fff;margin:10px 0"></select><button class="btn-iris" style="width:100%;margin-top:16px" onclick="alert('Key sent!')">Get NOVA Key</button></div>
+<script type="module">import {PRICING} from "./pricing.js";const s=document.getElementById('country');Object.entries(PRICING).forEach(([c,p])=>{s.innerHTML+=`<option value="${c}">${c} ${p.symbol}${p.pro}</option>`});</script>
+</body></html>

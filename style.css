@@ -1,0 +1,33 @@
+:root{
+  --color-void:#000000;
+  --color-bone:#ffffff;
+  --color-ash:#9a9a9a;
+  --color-mist:#bdbdbd;
+  --color-iris:#8052ff;
+  --color-saffron:#ffb829;
+  --font-main:'PPNeueMontreal',Inter,system-ui,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--color-void);color:var(--color-bone);font-family:var(--font-main);overflow-x:hidden}
+.nav{position:fixed;top:20px;left:50%;transform:translateX(-50%);width:calc(100% - 40px);max-width:1280px;display:flex;justify-content:space-between;align-items:center;z-index:10}
+.nav-links{display:flex;gap:30px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.35px;color:var(--color-ash)}
+.nav-links a:hover{color:var(--color-bone)}
+.btn-iris{background:var(--color-iris);color:#fff;padding:12px 22px;border-radius:9999px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.35px;border:none;cursor:pointer;display:inline-block}
+.hero{max-width:1280px;margin:0 auto;padding:160px 24px 80px;display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;min-height:90vh}
+.hero h1{font-size:78px;line-height:.9;letter-spacing:-3.12px;font-weight:400}
+.hero h1 span{color:var(--color-saffron)}
+.hero p{font-size:18px;font-weight:200;line-height:1.5;color:var(--color-mist);max-width:480px;margin:24px 0 32px}
+.label{color:var(--color-saffron);font-size:12px;font-weight:600;letter-spacing:.35px;text-transform:uppercase;margin-bottom:12px}
+#brain-canvas{width:100%;height:520px;display:block}
+.cards{max-width:1280px;margin:40px auto;padding:0 24px;display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.card{border:1px solid #1a1a1a;border-radius:24px;padding:28px;background:linear-gradient(180deg,#0a0a0a,#000)}
+.card:hover{transform:translateY(-4px);border-color:#2a2a2a}
+.card h3{font-size:24px;letter-spacing:-.48px;margin:12px 0 8px}
+.card p{color:var(--color-ash);font-size:15px;line-height:1.5;font-weight:200}
+.pricing{max-width:1280px;margin:120px auto;padding:0 24px}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:40px}
+.price-card{border:1px solid #222;border-radius:24px;padding:32px}
+.price-card.favoured{border-color:var(--color-iris);background:radial-gradient(600px at 0% 0%,rgba(128,82,255,.15),transparent)}
+.auth-wrap{max-width:420px;margin:140px auto;padding:32px;border:1px solid #1a1a1a;border-radius:24px;background:#0a0a0a}
+.auth-wrap input{width:100%;padding:14px 16px;border-radius:12px;border:1px solid #222;background:#000;color:#fff;margin:10px 0}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.hero h1{font-size:48px}.cards,.pricing-grid{grid-template-columns:1fr}}

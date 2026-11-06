@@ -1,13 +1,72 @@
 <!DOCTYPE html>
-<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AIBRIDGE - Your workplace has the answer</title>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIBRIDGE - Your workplace has the answer. Just ask.</title>
+<meta name="description" content="AIBRIDGE - Global team memory. Silent WhatsApp AI that learns, never replies. Used in 11 countries. Dala-inspired design: black void, violet accent, 3D brain constellation.">
 <link rel="stylesheet" href="style.css">
-<script type="importmap">{"imports":{"three":"https://esm.sh/three@0.160.0"}}</script>
-</head><body>
-<nav class="nav"><div><b>AIBRIDGE</b></div><div class="nav-links"><a>Manifesto</a><a href="#pricing">Team</a><a href="#pricing">Pricing</a></div><a href="login.html" class="btn-iris">Request Access</a></nav>
-<section class="hero"><div><div class="label">constellation floating on black velvet</div><h1>Your workplace<br>has the answer.<br><span>Just ask.</span></h1><p>NOVA remembers everything. Silent WhatsApp memory, team knowledge, billing — distributed intelligence.</p><a href="signup.html" class="btn-iris">Get NOVA Key</a></div><canvas id="brain-canvas"></canvas></section>
-<div class="cards"><div class="card"><div class="label">Silent Learning</div><h3>WhatsApp that learns, never replies</h3><p>No spam. Just memory.</p></div><div class="card"><div class="label">Favoured Pricing</div><h3>Nigeria ₦8k, not $29</h3><p>11 countries. Edit pricing.js only.</p></div><div class="card"><div class="label">Dala Style</div><h3>Void + Violet + Amber</h3><p>Pure black canvas.</p></div></div>
-<section id="pricing" class="pricing"><div class="label">Pricing - Edit pricing.js only</div><h2 style="font-size:42px;letter-spacing:-1.68px;font-weight:400">Favoured for Nigeria</h2><div class="pricing-grid" id="pricing-grid"></div></section>
-<script type="module">import {PRICING} from "./pricing.js";const g=document.getElementById('pricing-grid');Object.entries(PRICING).slice(0,3).forEach(([c,p])=>{g.innerHTML+=`<div class="price-card ${c==='NG'?'favoured':''}"><div class="label">${p.label||c}</div><h3>${p.symbol}${p.pro} Pro / ${p.symbol}${p.team} Team</h3><a class="btn-iris" style="margin-top:16px" href="signup.html">Choose ${c}</a></div>`});</script>
-<script type="module" src="brain.js"></script>
-</body></html>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<nav class="nav">
+  <div><b>AIBRIDGE</b></div>
+  <div class="nav-links">
+    <a href="#manifesto">Manifesto</a>
+    <a href="#pricing">Team</a>
+    <a href="#pricing">Pricing</a>
+  </div>
+  <a href="login.html" class="btn-iris">Request Access</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-text">
+    <div class="label">CONSTELLATION FLOATING ON BLACK VELVET • GLOBAL</div>
+    <h1>Your workplace<br>has the answer.<br><span>Just ask.</span></h1>
+    <p>AIBRIDGE is distributed intelligence for teams everywhere. NOVA lives silently in your WhatsApp — learning from every conversation, remembering every decision. From Lagos to London, Nairobi to New York — one memory, no borders.</p>
+    <a href="signup.html" class="btn-iris">Get NOVA Key</a>
+  </div>
+  <canvas id="brain-canvas"></canvas>
+</section>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Silent Learning</div>
+    <h3>WhatsApp that learns, never replies</h3>
+    <p>No spam. Just memory. NOVA never interrupts.</p>
+  </div>
+  <div class="card">
+    <div class="label">Favoured Pricing</div>
+    <h3>Global, priced locally</h3>
+    <p>11 countries. Nigeria ₦8k, US $19. Edit pricing.js only.</p>
+  </div>
+  <div class="card">
+    <div class="label">Dala Style</div>
+    <h3>Void + Violet + Amber</h3>
+    <p>Pure black canvas #000000, Iris #8052ff, Saffron #ffb829.</p>
+  </div>
+</div>
+
+<section id="pricing" class="pricing">
+  <div class="label">Pricing - Edit pricing.js only</div>
+  <h2 style="font-size:42px;letter-spacing:-1.68px;font-weight:400">Favoured for Nigeria, Fair for the World</h2>
+  <div class="pricing-grid" id="pricing-grid"></div>
+</section>
+
+<script type="module">
+import {PRICING} from "./pricing.js";
+const g=document.getElementById('pricing-grid');
+g.innerHTML='';
+Object.entries(PRICING).slice(0,3).forEach(([c,p])=>{
+  g.innerHTML+=`<div class="price-card ${c==='NG'?'favoured':''}"><div class="label">${p.label||c} • ${c==='NG'?'FAVOURED':''}</div><h3>${p.symbol}${p.pro} Pro / ${p.symbol}${p.team} Team</h3><p style="margin-top:8px;opacity:0.6">${c} Pricing</p><a class="btn-iris" style="margin-top:16px;display:inline-block" href="signup.html">Choose ${c}</a></div>`
+});
+</script>
+<script type="module" src="./brain.js"></script>
+</body>
+</html>

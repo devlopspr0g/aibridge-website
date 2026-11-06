@@ -1,0 +1,5 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard</title><link rel="stylesheet" href="style.css"></head><body>
+<nav class="nav"><b>AIBRIDGE / DASHBOARD</b><a href="index.html" class="btn-iris">Logout</a></nav>
+<div style="max-width:1280px;margin:120px auto;padding:0 24px;display:grid;grid-template-columns:280px 1fr;gap:24px"><div style="border:1px solid #1a1a1a;border-radius:24px;padding:24px;background:#0a0a0a"><div class="label">Memories</div><div style="padding:12px;border:1px solid #222;border-radius:12px;margin:8px 0">Team standup...</div></div><div><div class="cards" style="margin:0;grid-template-columns:1fr 1fr"><div class="card"><div class="label">Team</div><h3>3 members</h3></div><div class="card"><div class="label">Billing</div><h3 id="bill">₦8,000</h3></div></div></div></div>
+<script type="module">import {PRICING} from "./pricing.js";document.getElementById('bill').innerText=`${PRICING.NG.symbol}${PRICING.NG.pro.toLocaleString()} / month - ${PRICING.NG.label}`;</script>
+</body></html>

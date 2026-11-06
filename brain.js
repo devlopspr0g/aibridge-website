@@ -4,113 +4,110 @@ const canvas = document.getElementById('brain-canvas');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-const camera = new THREE.PerspectiveCamera(65, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
-camera.position.set(0, 0, 3.2);
+const camera = new THREE.PerspectiveCamera(65, canvas.clientWidth / 600, 0.1, 1000);
+camera.position.set(0, 0, 3.0);
 
 const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-renderer.setSize(canvas.clientWidth, 400);
+renderer.setSize(canvas.clientWidth, 600);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-// ---- Dala Brain Particles ----
-const count = 6000;
+// ---- Brain + Noise ----
+const count = 9000;
 const geo = new THREE.BufferGeometry();
 const pos = new Float32Array(count * 3);
 const colors = new Float32Array(count * 3);
-const origPos = new Float32Array(count * 3);
+const brainPos = new Float32Array(count * 3);
+const noisePos = new Float32Array(count * 3);
 
 const palette = [
-  new THREE.Color(0xffb829), // saffron gold - Dala
-  new THREE.Color(0x8052ff), // electric iris
-  new THREE.Color(0xffffff), // white
-  new THREE.Color(0x8a5cff), // light violet
-  new THREE.Color(0x00ffd1), // cyan
-  new THREE.Color(0xffd23f), // yellow
+  new THREE.Color(0xffb829),
+  new THREE.Color(0x8052ff),
+  new THREE.Color(0xffffff),
+  new THREE.Color(0xffd23f),
+  new THREE.Color(0x8a5cff),
 ];
 
 for (let i = 0; i < count; i++) {
   const i3 = i * 3;
-  // Brain shape math - ellipsoid with two lobes
+  // BRAIN SHAPE - Dala accurate (elongated)
   const theta = Math.random() * Math.PI * 2;
   const phi = Math.random() * Math.PI;
-  const r = 1.1 + Math.sin(theta * 4) * 0.15 + Math.cos(phi * 3) * 0.1 + (Math.random()-0.5)*0.2;
+  const r = 1.05 + Math.sin(theta * 5) * 0.12 + (Math.random()-0.5)*0.15;
 
-  let x = r * Math.sin(phi) * Math.cos(theta) * 0.95;
-  let y = r * Math.sin(phi) * Math.sin(theta) * 0.75;
-  let z = r * Math.cos(phi) * 0.65;
+  let x = r * Math.sin(phi) * Math.cos(theta) * 1.0;
+  let y = r * Math.sin(phi) * Math.sin(theta) * 0.65;
+  let z = r * Math.cos(phi) * 0.55;
+  if (Math.abs(x) < 0.13) x += x > 0 ? 0.2 : -0.2;
 
-  // Create hemisphere split
-  if (Math.abs(x) < 0.12) x += x > 0 ? 0.18 : -0.18;
+  brainPos[i3] = x;
+  brainPos[i3+1] = y;
+  brainPos[i3+2] = z;
+
+  // NOISE CLOUD - scattered everywhere
+  noisePos[i3] = (Math.random()-0.5) * 8;
+  noisePos[i3+1] = (Math.random()-0.5) * 6;
+  noisePos[i3+2] = (Math.random()-0.5) * 4;
 
   pos[i3] = x;
   pos[i3+1] = y;
   pos[i3+2] = z;
-  origPos[i3] = x;
-  origPos[i3+1] = y;
-  origPos[i3+2] = z;
 
-  const col = palette[Math.floor(Math.random() * palette.length)];
-  colors[i3] = col.r;
-  colors[i3+1] = col.g;
-  colors[i3+2] = col.b;
+  const col = palette[Math.floor(Math.random()*palette.length)];
+  colors[i3]=col.r; colors[i3+1]=col.g; colors[i3+2]=col.b;
 }
 
 geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
 geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
 const mat = new THREE.PointsMaterial({
-  size: 0.018,
+  size: 0.022,
   vertexColors: true,
   transparent: true,
-  opacity: 0.9,
-  sizeAttenuation: true
+  opacity: 0.95,
+  sizeAttenuation: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false
 });
 
 const brain = new THREE.Points(geo, mat);
 scene.add(brain);
 
-// Floating triangles background
-const triCount = 80;
-for(let i=0;i<triCount;i++){
-  const triGeo = new THREE.BufferGeometry();
-  const triPos = new Float32Array([0,0,0, 0.08,0,0, 0,0.08,0]);
-  triGeo.setAttribute('position', new THREE.BufferAttribute(triPos,3));
-  const triMat = new THREE.MeshBasicMaterial({color: palette[i%palette.length], wireframe: true, transparent:true, opacity:0.15});
-  const tri = new THREE.Mesh(triGeo, triMat);
-  tri.position.set((Math.random()-0.5)*8, (Math.random()-0.5)*5, (Math.random()-0.5)*3);
-  tri.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, 0);
-  scene.add(tri);
-}
+// Mouse control like Dala video
+let targetMix = 0; // 0 = brain, 1 = noise
+let currentMix = 0;
 
-let scrollY = 0;
-window.addEventListener('scroll', () => {
-  scrollY = window.scrollY / window.innerHeight;
+window.addEventListener('mousemove', (e) => {
+  const y = e.clientY / window.innerHeight;
+  // Cursor UP (y < 0.4) = noise mode, DOWN = brain mode
+  targetMix = 1 - y; // top = 1, bottom = 0
+  targetMix = Math.pow(targetMix, 1.5) * 1.2; // make top more sensitive
+});
+
+window.addEventListener('touchmove', (e) => {
+  const y = e.touches[0].clientY / window.innerHeight;
+  targetMix = 1 - y;
 });
 
 function animate() {
   requestAnimationFrame(animate);
+  currentMix += (targetMix - currentMix) * 0.03; // smooth lerp
+  currentMix = Math.max(0, Math.min(1, currentMix));
+
   const positions = geo.attributes.position.array;
-  
   for (let i = 0; i < count; i++) {
     const i3 = i * 3;
-    const disperse = Math.min(scrollY * 2.5, 1.5);
-    
-    // Disperse on scroll like Dala video
-    positions[i3] = origPos[i3] + (Math.random()-0.5) * disperse * 3;
-    positions[i3+1] = origPos[i3+1] + (Math.random()-0.5) * disperse * 3;
-    positions[i3+2] = origPos[i3+2] + (Math.random()-0.5) * disperse * 3;
+    positions[i3] = brainPos[i3] * (1-currentMix) + noisePos[i3] * currentMix;
+    positions[i3+1] = brainPos[i3+1] * (1-currentMix) + noisePos[i3+1] * currentMix;
+    positions[i3+2] = brainPos[i3+2] * (1-currentMix) + noisePos[i3+2] * currentMix;
   }
   geo.attributes.position.needsUpdate = true;
 
-  brain.rotation.y += 0.0015;
+  brain.rotation.y += 0.001 + currentMix * 0.002;
   brain.rotation.x = Math.sin(Date.now()*0.0002)*0.15;
-  brain.position.y = Math.sin(Date.now()*0.0004)*0.15;
-  
+  if (currentMix < 0.2) {
+    brain.position.y = Math.sin(Date.now()*0.0004)*0.12;
+  }
+
   renderer.render(scene, camera);
 }
 animate();
-
-window.addEventListener('resize', ()=>{
-  camera.aspect = canvas.clientWidth / canvas.clientHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(canvas.clientWidth, canvas.clientHeight);
-});

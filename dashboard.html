@@ -1,5 +1,128 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard</title><link rel="stylesheet" href="style.css"></head><body>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard - AI-Bridge</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.mem-input{width:100%;padding:14px 16px;border-radius:12px;border:1px solid #222;background:#111;color:#fff;outline:none;margin-top:12px}
+.mem-list{margin-top:16px;max-height:60vh;overflow:auto}
+.mem-item{padding:12px;border:1px solid #1a1a1a;border-radius:12px;margin:8px 0;background:#0f0f0f;font-size:14px}
+.mem-item small{color:#666;display:block;margin-top:4px}
+.btn-save{margin-top:12px;width:100%;padding:12px;border-radius:12px;background:#ffb829;color:#000;font-weight:700;border:none;cursor:pointer}
+.btn-save:disabled{opacity:.5}
+</style>
+</head>
+<body>
 <nav class="nav"><b>AIBRIDGE / DASHBOARD</b><a href="index.html" class="btn-iris">Logout</a></nav>
-<div style="max-width:1280px;margin:120px auto;padding:0 24px;display:grid;grid-template-columns:280px 1fr;gap:24px"><div style="border:1px solid #1a1a1a;border-radius:24px;padding:24px;background:#0a0a0a"><div class="label">Memories</div><div style="padding:12px;border:1px solid #222;border-radius:12px;margin:8px 0">Team standup...</div></div><div><div class="cards" style="margin:0;grid-template-columns:1fr 1fr"><div class="card"><div class="label">Team</div><h3>3 members</h3></div><div class="card"><div class="label">Billing</div><h3 id="bill">₦8,000</h3></div></div></div></div>
-<script type="module">import {PRICING} from "./pricing.js";document.getElementById('bill').innerText=`${PRICING.NG.symbol}${PRICING.NG.pro.toLocaleString()} / month - ${PRICING.NG.label}`;</script>
-</body></html>
+
+<div style="max-width:1280px;margin:120px auto;padding:0 24px;display:grid;grid-template-columns:280px 1fr;gap:24px">
+  
+  <!-- LEFT -->
+  <div style="border:1px solid #1a1a1a;border-radius:24px;padding:24px;background:#0a0a0a">
+    <div class="label">Memories (ai_bridge_db)</div>
+    <div id="mem-list" class="mem-list">
+      <div style="color:#666;font-size:13px">Loading...</div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div>
+    <div class="cards" style="margin:0;grid-template-columns:1fr 1fr">
+      <div class="card"><div class="label">Team</div><h3>3 members</h3></div>
+      <div class="card"><div class="label">Billing</div><h3 id="bill">₦8,000</h3></div>
+    </div>
+
+    <div class="card" style="margin-top:24px">
+      <div class="label">Remember Something (Nova + Cloud)</div>
+      <input id="mem-input" class="mem-input" placeholder="e.g. Nova is my twin AI, likes dark mode..." />
+      <button id="mem-save" class="btn-save">Save to Brain</button>
+      <div id="mem-status" style="margin-top:10px;font-size:13px;color:#888"></div>
+    </div>
+
+    <div class="card" style="margin-top:24px">
+      <div class="label">Connection Status</div>
+      <div style="font-size:13px;line-height:1.6;margin-top:8px">
+        <div>API: <span id="api-status" style="color:#888">checking...</span></div>
+        <div>IndexedDB: <span id="idb-status" style="color:#888">checking...</span></div>
+        <div>Queue: <span id="queue-status">0 pending</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script type="module">
+import { PRICING } from "./pricing.js";
+import { remember, recall, syncNow } from "./lib/memory.js";
+
+document.getElementById('bill').innerText = `${PRICING.NG.symbol}${PRICING.NG.pro.toLocaleString()} / month - ${PRICING.NG.label}`;
+
+const input = document.getElementById('mem-input');
+const btn = document.getElementById('mem-save');
+const list = document.getElementById('mem-list');
+const status = document.getElementById('mem-status');
+
+async function renderList(){
+  try{
+    const all = await recall();
+    document.getElementById('idb-status').innerText = `OK (${all.length})`;
+    document.getElementById('idb-status').style.color = '#0f0';
+    if(all.length===0){
+      list.innerHTML = '<div style="color:#666;font-size:13px">No memories yet. Save one above.</div>';
+      return;
+    }
+    list.innerHTML = all.slice().reverse().map(m=>`
+      <div class="mem-item">${m.text}<small>${new Date(m.created||Date.now()).toLocaleString()}</small></div>
+    `).join('');
+    document.getElementById('queue-status').innerText = '0 pending';
+  }catch(e){
+    document.getElementById('idb-status').innerText = 'Error';
+    list.innerHTML = `<div style="color:#a00">${e.message}</div>`;
+  }
+}
+
+async function checkApi(){
+  try{
+    const r = await fetch('https://aibridge-api-render-1.onrender.com/');
+    const t = await r.text();
+    document.getElementById('api-status').innerText = t.includes('LIVE') ? 'LIVE' : 'OK';
+    document.getElementById('api-status').style.color = '#0f0';
+  }catch{
+    document.getElementById('api-status').innerText = 'Offline (will save locally)';
+    document.getElementById('api-status').style.color = '#ffb829';
+  }
+}
+
+btn.onclick = async ()=>{
+  const text = input.value.trim();
+  if(!text) return;
+  btn.disabled = true;
+  status.innerText = 'Saving to ai_bridge_db + cloud...';
+  try{
+    await remember(text);
+    input.value = '';
+    status.innerText = 'Saved! ✓';
+    await renderList();
+    setTimeout(()=>status.innerText='',2000);
+  }catch(e){
+    status.innerText = 'Saved offline, will sync when online';
+    await renderList();
+  }
+  btn.disabled = false;
+};
+
+input.addEventListener('keydown', e=>{ if(e.key==='Enter') btn.click() });
+
+checkApi();
+renderList();
+
+// expose for console
+window.remember = remember;
+window.recall = recall;
+console.log("Memory brain ready");
+</script>
+
+</body>
+</html>

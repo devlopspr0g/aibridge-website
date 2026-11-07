@@ -66,19 +66,110 @@ function brainPoint(i, out) {
   out[2] = dz * 1.5 * f;
 }
 
+const BULB_LIGHT_POS = [0, 0.5, 0];
+const BULB_LIGHT_INTENSITY = 2;
+
+/** Bulb glass radius before the (1 + y * 0.2) flare: bulbous top. */
+function bulbRadius(y) {
+  const k = (y - 0.4) / 0.8;
+  return 0.7 * Math.sqrt(Math.max(0, 1 - k * k));
+}
+
+/**
+ * Point on a light bulb (y up).
+ * Bottom 30% of particles: screw — cylinder r 0.15, h 0.4, centred at y -0.8.
+ * Top 70%: glass — y in [-0.3, 1.1], radius = 0.7 * sqrt(1 - ((y - 0.4) / 0.8)^2),
+ * flared by (1 + y * 0.2). A small top cap and neck close the openings the
+ * formula leaves at y = 1.1 and between glass and screw.
+ */
+function bulbPoint(i, out) {
+  const angle = Math.random() * Math.PI * 2;
+  if (i % 10 < 3) {
+    const y = -0.8 + (Math.random() - 0.5) * 0.4;
+    const r = 0.15;
+    out[0] = Math.cos(angle) * r;
+    out[1] = y;
+    out[2] = Math.sin(angle) * r;
+    return;
+  }
+  const roll = Math.random();
+  if (roll < 0.08) {
+    // top cap: shallow dome over the opening at y = 1.1
+    const edge = bulbRadius(1.1) * (1 + 1.1 * 0.2);
+    const rho = edge * Math.sqrt(Math.random());
+    out[0] = Math.cos(angle) * rho;
+    out[1] = 1.1 + 0.1 * (1 - (rho / edge) ** 2);
+    out[2] = Math.sin(angle) * rho;
+    return;
+  }
+  if (roll < 0.15) {
+    // neck: taper from the glass (y -0.3) down to the screw top (y -0.6)
+    const h = Math.random();
+    const top = bulbRadius(-0.3) * (1 - 0.3 * 0.2);
+    const r = 0.15 + (top - 0.15) * h;
+    out[0] = Math.cos(angle) * r;
+    out[1] = -0.6 + h * 0.3;
+    out[2] = Math.sin(angle) * r;
+    return;
+  }
+  // glass wall, sampled proportionally to radius so density stays even
+  let y = 0, radius = 0;
+  for (let k = 0; k < 20; k++) {
+    y = -0.3 + Math.random() * 1.4;
+    radius = bulbRadius(y);
+    if (Math.random() * 0.7 < radius) break;
+  }
+  out[0] = Math.cos(angle) * radius * (1 + y * 0.2);
+  out[1] = y;
+  out[2] = Math.sin(angle) * radius * (1 + y * 0.2);
+}
+
 function smoothstep(t) {
   const x = Math.min(1, Math.max(0, t));
   return x * x * (3 - 2 * x);
 }
 
 /**
+ * Scroll progress (0..1) -> how scattered the particles are and which shape they
+ * gather into. 0 = brain, 0.5 = noise cloud, 1 = bulb.
+ * @param {number} p
+ * @returns {{ scatter: number, form: number }}
+ */
+export function scrollPhase(p) {
+  const scatter = p < 0.5 ? smoothstep(p / 0.5) : smoothstep((1 - p) / 0.5);
+  const form = smoothstep((p - 0.47) / 0.06); // swap target while fully scattered
+  return { scatter, form };
+}
+
+/**
+ * Which side of the screen the shape sits on as the page scrolls (wide screens):
+ * 1 = right, -1 = left, 0 = centre. Matches the page's text sections.
+ * @param {number} p scroll progress 0..1
+ */
+export function sideCurve(p) {
+  const keys = [
+    [0, 1],
+    [0.2, -1],
+    [0.4, 0],
+    [0.8, 0],
+    [1, 1],
+  ];
+  for (let k = 1; k < keys.length; k++) {
+    const [p1, v1] = keys[k];
+    const [p0, v0] = keys[k - 1];
+    if (p <= p1) return v0 + (v1 - v0) * smoothstep((p - p0) / (p1 - p0));
+  }
+  return 1;
+}
+
+/**
  * Start the brain hero on a canvas.
+ * Page scroll 0% = brain, 50% = noise cloud, 100% = light bulb.
+ * Mouse Y still scatters whatever shape is showing (top = noise).
  * @param {HTMLCanvasElement} canvas
- * @param {{ scrollTarget?: HTMLElement | null }} [opts]
  * @returns {() => void} dispose
  */
-export function initBrain(canvas, opts = {}) {
-  const scrollTarget = opts.scrollTarget || null;
+export function initBrain(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setClearColor(0x000000, 1);
@@ -93,6 +184,7 @@ export function initBrain(canvas, opts = {}) {
   const pos = new Float32Array(COUNT * 3);
   const colors = new Float32Array(COUNT * 3);
   const stagger = new Float32Array(COUNT);
+  const bulb = new Float32Array(COUNT * 3);
   const tmp = [0, 0, 0];
 
   for (let i = 0; i < COUNT; i++) {
@@ -123,11 +215,17 @@ export function initBrain(canvas, opts = {}) {
   const c = new THREE.Color();
   for (let r = 0; r < COUNT; r++) {
     const i = order[r];
-    const hex = r < COUNT * 0.4 ? GOLD : r < COUNT * 0.7 ? VIOLET : WHITE;
-    c.set(hex);
+    const kind = r < COUNT * 0.4 ? 0 : r < COUNT * 0.7 ? 1 : 2; // gold, violet, white
+    c.set(kind === 0 ? GOLD : kind === 1 ? VIOLET : WHITE);
     colors[i * 3] = c.r;
     colors[i * 3 + 1] = c.g;
     colors[i * 3 + 2] = c.b;
+  }
+  for (let i = 0; i < COUNT; i++) {
+    bulbPoint(i, tmp);
+    bulb[i * 3] = tmp[0];
+    bulb[i * 3 + 1] = tmp[1];
+    bulb[i * 3 + 2] = tmp[2];
   }
 
   const geo = new THREE.BufferGeometry();
@@ -157,7 +255,36 @@ export function initBrain(canvas, opts = {}) {
   };
   const points = new THREE.Points(geo, mat);
 
+  // soft warm glow that switches on once the bulb has formed
+  const glowCanvas = document.createElement("canvas");
+  glowCanvas.width = glowCanvas.height = 128;
+  const gg = glowCanvas.getContext("2d");
+  const grad = gg.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, "rgba(255,184,41,1)");
+  grad.addColorStop(0.35, "rgba(255,184,41,0.35)");
+  grad.addColorStop(1, "rgba(255,184,41,0)");
+  gg.fillStyle = grad;
+  gg.fillRect(0, 0, 128, 128);
+  const glowTex = new THREE.CanvasTexture(glowCanvas);
+  glowTex.colorSpace = THREE.SRGBColorSpace;
+  const glowMat = new THREE.SpriteMaterial({
+    map: glowTex,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const glow = new THREE.Sprite(glowMat);
+  glow.scale.setScalar(2.4);
+  glow.position.set(...BULB_LIGHT_POS);
+
+  // point light inside the bulb (0 until the bulb forms)
+  const bulbLight = new THREE.PointLight(GOLD, 0, 4, 2);
+  bulbLight.position.set(...BULB_LIGHT_POS);
+
   const group = new THREE.Group();
+  group.add(glow);
+  group.add(bulbLight);
   group.add(points);
   group.rotation.set(0.08, Math.PI / 2, 0);
   scene.add(group);
@@ -196,20 +323,15 @@ export function initBrain(canvas, opts = {}) {
 
   // ---------- input ----------
   let mouseMix = 0; // 1 at top of screen, 0 at bottom
-  let scrollMix = 0;
+  let scrollP = 0; // 0..1 page scroll progress
   const onPointer = (clientY) => {
     mouseMix = smoothstep(1 - clientY / window.innerHeight);
   };
   const onMouse = (e) => onPointer(e.clientY);
   const onTouch = (e) => e.touches[0] && onPointer(e.touches[0].clientY);
   const onScroll = () => {
-    if (scrollTarget) {
-      const r = scrollTarget.getBoundingClientRect();
-      const span = Math.max(1, r.height - window.innerHeight);
-      scrollMix = smoothstep(-r.top / span);
-    } else {
-      scrollMix = smoothstep(window.scrollY / Math.max(1, canvas.clientHeight));
-    }
+    const span = document.documentElement.scrollHeight - window.innerHeight;
+    scrollP = span > 0 ? Math.min(1, Math.max(0, window.scrollY / span)) : 0;
   };
   window.addEventListener("mousemove", onMouse, { passive: true });
   window.addEventListener("touchmove", onTouch, { passive: true });
@@ -217,7 +339,8 @@ export function initBrain(canvas, opts = {}) {
   onScroll();
 
   // ---------- layout ----------
-  let baseX = 0, baseY = -0.06;
+  let sideX = 0, baseY = -0.06, wide = true;
+  let curX = 0, curY = 0;
   const resize = () => {
     const w = canvas.clientWidth || 1;
     const h = canvas.clientHeight || 1;
@@ -227,13 +350,15 @@ export function initBrain(canvas, opts = {}) {
     const visH = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const visW = visH * camera.aspect;
     if (w >= 768) {
-      baseX = visW * 0.2;
+      wide = true;
+      sideX = visW * 0.2;
       baseY = -0.06;
       group.scale.setScalar(Math.min(0.68, (visW * 0.5) / 3.6));
       mat.size = POINT_SIZE;
     } else {
-      baseX = 0;
-      baseY = -0.22;
+      wide = false;
+      sideX = 0;
+      baseY = -0.25;
       const sc = Math.min(0.68, (visW * 0.95) / 3.6);
       group.scale.setScalar(sc);
       mat.size = POINT_SIZE * Math.max(0.6, sc / 0.68); // keep density readable on phones
@@ -242,6 +367,8 @@ export function initBrain(canvas, opts = {}) {
   const ro = new ResizeObserver(resize);
   ro.observe(canvas);
   resize();
+  curX = wide ? sideX * sideCurve(scrollP) : 0;
+  curY = baseY;
 
   // ---------- loop ----------
   const clock = new THREE.Clock();
@@ -250,14 +377,23 @@ export function initBrain(canvas, opts = {}) {
   const tick = () => {
     raf = requestAnimationFrame(tick);
     const t = clock.getElapsedTime();
-    const mix = Math.max(mouseMix, scrollMix);
+    // Scroll: 0% brain -> 50% noise -> 100% bulb (smoothstep each half)
+    const { scatter: scrollScatter, form } = scrollPhase(scrollP);
+    const mix = Math.max(mouseMix, scrollScatter);
+    const lit = (1 - mix) * form; // 1 once the bulb has formed
+    const pulse = 0.9 + Math.sin(t * 2) * 0.1;
+    glowMat.opacity += (lit * 0.45 * pulse - glowMat.opacity) * 0.05;
+    bulbLight.intensity += (lit * BULB_LIGHT_INTENSITY * pulse - bulbLight.intensity) * 0.05;
 
     for (let i = 0; i < COUNT; i++) {
       const m = smoothstep((mix - stagger[i] * 0.4) / 0.6);
       const j = i * 3;
-      const tx = brain[j] + (noise[j] - brain[j]) * m;
-      const ty = brain[j + 1] + (noise[j + 1] - brain[j + 1]) * m;
-      const tz = brain[j + 2] + (noise[j + 2] - brain[j + 2]) * m;
+      const sx = brain[j] + (bulb[j] - brain[j]) * form;
+      const sy = brain[j + 1] + (bulb[j + 1] - brain[j + 1]) * form;
+      const sz = brain[j + 2] + (bulb[j + 2] - brain[j + 2]) * form;
+      const tx = sx + (noise[j] - sx) * m;
+      const ty = sy + (noise[j + 1] - sy) * m;
+      const tz = sz + (noise[j + 2] - sz) * m;
       pos[j] += (tx - pos[j]) * LERP;
       pos[j + 1] += (ty - pos[j + 1]) * LERP;
       pos[j + 2] += (tz - pos[j + 2]) * LERP;
@@ -265,7 +401,12 @@ export function initBrain(canvas, opts = {}) {
     posAttr.needsUpdate = true;
 
     group.rotation.y += ROT_SPEED;
-    group.position.set(baseX, baseY + Math.sin(t) * FLOAT_AMP, 0);
+    // follow the page: slide between sides; on phones drop below the first headline only
+    const tx = wide ? sideX * sideCurve(scrollP) : 0;
+    const ty = wide ? baseY : baseY * (1 - smoothstep(scrollP / 0.12));
+    curX += (tx - curX) * 0.04;
+    curY += (ty - curY) * 0.04;
+    group.position.set(curX, curY + Math.sin(t) * FLOAT_AMP, 0);
 
     for (const m of tris) {
       m.position.add(m.userData.v);
@@ -294,6 +435,8 @@ export function initBrain(canvas, opts = {}) {
     geo.dispose();
     mat.dispose();
     tex.dispose();
+    glowTex.dispose();
+    glowMat.dispose();
     triGeo.dispose();
     triMats.forEach((m) => m.dispose());
     renderer.dispose();
